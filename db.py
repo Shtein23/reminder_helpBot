@@ -24,8 +24,8 @@ class BotDB:
 
     def add_record(self, user_id, l, d, m):
         """Создаем запись о доходах/расходах"""
-        print(f"INSERT INTO 'reminders' ('users_id', 'loop', 'date', 'msg') VALUES "
-                            f"({self.get_user_id(user_id)}, {l}, '{d}', '{m}')")
+        # print(f"INSERT INTO 'reminders' ('users_id', 'loop', 'date', 'msg') VALUES "
+        #                     f"({self.get_user_id(user_id)}, {l}, '{d}', '{m}')")
         self.cursor.execute(f"INSERT INTO 'reminders' ('users_id', 'loop', 'date', 'msg') VALUES "
                             f"({self.get_user_id(user_id)}, {l}, '{d}', '{m}')")
         return self.conn.commit()

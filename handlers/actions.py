@@ -11,9 +11,10 @@ from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ParseMode
 import aiogram.utils.markdown as md
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
+# ===================================== Классы состояний для последовательного заполнения ==============================
 # создаём форму и указываем поля
 class RemOnDate(StatesGroup):
     date = State()
@@ -29,7 +30,10 @@ class RemOnTime(StatesGroup):
 # keyboards.py
 inline_btn_1 = InlineKeyboardButton('Напоминание на дату', callback_data='RemOnDate')
 inline_btn_2 = InlineKeyboardButton('Ежедневное напоминание', callback_data='RemOnTime')
+inline_btn_3 = InlineKeyboardButton('Сегодня', callback_data='Today')
+inline_btn_4 = InlineKeyboardButton('Завтра', callback_data='Tomorrow')
 inline_btns = InlineKeyboardMarkup().add(inline_btn_1).add(inline_btn_2)
+
 
 button_hi = KeyboardButton('Привет! 👋')
 greet_kb1 = ReplyKeyboardMarkup(resize_keyboard=True).add(button_hi)
@@ -58,8 +62,18 @@ async def send_welcome(message: types.Message):
     """
     This handler will be called when user sends `/help` command
     """
-    await message.reply("Напишите команду /r или /remind, чтобы установить напоминание.\n"
-                        "Раздел справки дорабатывается!")
+    await message.reply(md.text(md.text(md.bold('Reminder Bot\n')),
+                                md.text('Данный бот позволяет создавать напоминания с точностью до минуты.\n'
+                                        'Сейчас доступны следующие варианты уведомлений:'),
+                                md.text('1. Напоминание на определенную дату и время.'),
+                                md.text('2. Ежедневное напоминание в определенное время.\n'),
+                                md.text('После установки напоминания, когда подойдет нужное время и дата, '
+                                        'бот пришлет уведомление.\n'),
+                                md.text('Для напоминания устанавливается дата и время, или только время, '
+                                        'а также его название.'),
+                                sep='\n',
+                                ),
+                        parse_mode=ParseMode.MARKDOWN)
 
 
 # ===================================== Установка напоминаний ==========================================================
@@ -78,7 +92,27 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         return
 
     await state.finish()
-    await message.reply('ОК')
+    await message.reply('Установка напоминания отменена')
+
+
+# ===================================== Показать активные напоминания ==================================================
+@dp.message_handler(commands=['hi'])
+async def send_welcome(message: types.Message):
+    reminds = BotDB.get_records(BotDB.get_user_id(message.from_user.id))
+    print(reminds)
+    ans = ''
+    for r in reminds:
+        ans += f'Напоминание - {r[4]}\n'
+        if r[2]:
+            ans += 'Ежедневное\n'
+        else:
+            ans += 'Однократное\n'
+
+        ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").date().isoformat()}'
+
+        ans += '\n \n \n'
+
+    await message.reply(ans)
 
 
 # ===================================== Установка ежедневного напоминания ==============================================
@@ -127,7 +161,32 @@ async def process_msg_remontime(message: types.Message, state: FSMContext):
 async def process_callback_remondate(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await RemOnDate.date.set()
-    await bot.send_message(callback_query.from_user.id, 'Введите дату для напоминания')
+    await bot.send_message(callback_query.from_user.id, 'Выберите или введите дату для напоминания',
+                           reply_markup=InlineKeyboardMarkup().add(inline_btn_3).add(inline_btn_4))
+
+
+@dp.callback_query_handler(lambda c: c.data == 'Today', state=RemOnDate.date)
+async def process_date_today_remondate(callback_query: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback_query.id)
+    async with state.proxy() as data:
+        data['date'] = datetime.now()
+    await RemOnDate.next()
+    await bot.send_message(callback_query.from_user.id,
+                           f'Дата напоминаия - {data["date"].date().isoformat()} (сегодня)\n'
+                           f'Введите время напоминания\n'
+                           f'Формат: чч:мм (10:00)')
+
+
+@dp.callback_query_handler(lambda c: c.data == 'Tomorrow', state=RemOnDate.date)
+async def process_date_tomorrow_remondate(callback_query: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback_query.id)
+    async with state.proxy() as data:
+        data['date'] = (datetime.now() + timedelta(days=1))
+    await RemOnDate.next()
+    await bot.send_message(callback_query.from_user.id,
+                           f'Дата напоминаия - {data["date"].date().isoformat()} (завтра)\n'
+                           f'Введите время напоминания\n'
+                           f'Формат: чч:мм (10:00)')
 
 
 # Сюда приходит ответ с датой
@@ -135,10 +194,11 @@ async def process_callback_remondate(callback_query: types.CallbackQuery):
 async def process_date_remondate(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['date'] = datetime.strptime(message.text + "." + str(datetime.now().year), '%d.%m.%Y')
-        print(data['date'])
+        # print(data['date'])
     await RemOnDate.next()
-    await message.reply('Введите время напоминания\n'
-                        'Формат: чч:мм (10:00)')
+    await bot.send_message(message.chat.id, f'Дата напоминаия - {data["date"].date()}\n'
+                                            f'Введите время напоминания\n'
+                                            f'Формат: чч:мм (10:00)')
 
 
 # Сюда приходит ответ с временем
@@ -176,7 +236,6 @@ async def check_reminders():
         for id in BotDB.get_users():
 
             for rec in BotDB.get_records(id[0]):
-                # print(rec)
                 now = datetime.now()
                 if int(rec[2]):
                     if datetime.strptime(rec[3], '%Y-%m-%d %H:%M:%S').hour == now.hour and \
@@ -184,7 +243,8 @@ async def check_reminders():
                         await bot.send_message(id[1], f'Уведомление!\n'
                                                       f'{rec[4]}')
                 else:
-                    if datetime.strptime(rec[3], '%Y-%m-%d %H:%M:%S').hour == now.hour and \
+                    if datetime.strptime(rec[3], '%Y-%m-%d %H:%M:%S').date() == now.date() and \
+                            datetime.strptime(rec[3], '%Y-%m-%d %H:%M:%S').hour == now.hour and \
                             datetime.strptime(rec[3], '%Y-%m-%d %H:%M:%S').minute == now.minute:
                         await bot.send_message(id[1], f'Уведомление!\n'
                                                       f'{rec[4]}')
