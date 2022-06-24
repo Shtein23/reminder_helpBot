@@ -96,7 +96,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
 
 # ===================================== Показать активные напоминания ==================================================
-@dp.message_handler(commands=['hi'])
+@dp.message_handler(commands=['h'])
 async def send_welcome(message: types.Message):
     reminds = BotDB.get_records(BotDB.get_user_id(message.from_user.id))
     print(reminds)
@@ -105,10 +105,11 @@ async def send_welcome(message: types.Message):
         ans += f'Напоминание - {r[4]}\n'
         if r[2]:
             ans += 'Ежедневное\n'
+            ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").time().isoformat()}'
         else:
             ans += 'Однократное\n'
-
-        ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").date().isoformat()}'
+            ans += f'Дата напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").date().isoformat()}\n'
+            ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").time().isoformat()}'
 
         ans += '\n \n \n'
 
