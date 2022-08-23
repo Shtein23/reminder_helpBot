@@ -70,7 +70,8 @@ async def send_welcome(message: types.Message):
                                 md.text('После установки напоминания, когда подойдет нужное время и дата, '
                                         'бот пришлет уведомление.\n'),
                                 md.text('Для напоминания устанавливается дата и время, или только время, '
-                                        'а также его название.'),
+                                        'а также его название.\n'),
+                                md.text('\n\n\nv1.1.1'),
                                 sep='\n',
                                 ),
                         parse_mode=ParseMode.MARKDOWN)
@@ -105,11 +106,11 @@ async def send_welcome(message: types.Message):
         ans += f'Напоминание - {r[4]}\n'
         if r[2]:
             ans += 'Ежедневное\n'
-            ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").time().isoformat()}'
+            ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").strftime("%H:%M")}'
         else:
             ans += 'Однократное\n'
-            ans += f'Дата напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").date().isoformat()}\n'
-            ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").time().isoformat()}'
+            ans += f'Дата напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").strftime("%d.%m.%Y")}\n'
+            ans += f'Время напоминания - {datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S").strftime("%H:%M")}'
 
         ans += '\n \n \n'
 
@@ -147,7 +148,7 @@ async def process_msg_remontime(message: types.Message, state: FSMContext):
             message.chat.id,
             md.text(
                 md.text(f'Установлено ежедневное напоминание - {md.bold(data["msg"])}'),
-                md.text(f'Время - {md.bold(data["time"].hour)}:{md.bold(data["time"].minute)}'),
+                md.text(f'Время - {md.bold(data["time"].strftime("%H:%M"))}'),
                 sep='\n',
             ),
             parse_mode=ParseMode.MARKDOWN,
@@ -173,7 +174,7 @@ async def process_date_today_remondate(callback_query: types.CallbackQuery, stat
         data['date'] = datetime.now()
     await RemOnDate.next()
     await bot.send_message(callback_query.from_user.id,
-                           f'Дата напоминаия - {data["date"].date().isoformat()} (сегодня)\n'
+                           f'Дата напоминаия - {data["date"].date().strftime("%d.%m.%Y")} (сегодня)\n'
                            f'Введите время напоминания\n'
                            f'Формат: чч:мм (10:00)')
 
@@ -185,7 +186,7 @@ async def process_date_tomorrow_remondate(callback_query: types.CallbackQuery, s
         data['date'] = (datetime.now() + timedelta(days=1))
     await RemOnDate.next()
     await bot.send_message(callback_query.from_user.id,
-                           f'Дата напоминаия - {data["date"].date().isoformat()} (завтра)\n'
+                           f'Дата напоминаия - {data["date"].date().strftime("%d.%m.%Y")} (завтра)\n'
                            f'Введите время напоминания\n'
                            f'Формат: чч:мм (10:00)')
 
@@ -197,7 +198,7 @@ async def process_date_remondate(message: types.Message, state: FSMContext):
         data['date'] = datetime.strptime(message.text + "." + str(datetime.now().year), '%d.%m.%Y')
         # print(data['date'])
     await RemOnDate.next()
-    await bot.send_message(message.chat.id, f'Дата напоминаия - {data["date"].date()}\n'
+    await bot.send_message(message.chat.id, f'Дата напоминаия - {data["date"].date().strftime("%d.%m.%Y")}\n'
                                             f'Введите время напоминания\n'
                                             f'Формат: чч:мм (10:00)')
 
@@ -221,8 +222,8 @@ async def process_msg_remondate(message: types.Message, state: FSMContext):
             message.chat.id,
             md.text(
                 md.text(f'Установлено напоминание - {md.bold(data["msg"])}'),
-                md.text(f'Дата - {md.bold(data["time"].day)}.{md.bold(data["time"].month)}'),
-                md.text(f'Время - {md.bold(data["time"].hour)}:{md.bold(data["time"].minute)}'),
+                md.text(f'Дата - *{data["date"].strftime("%d.%m.%Y")}*'),
+                md.text(f'Время - {md.bold(data["time"].strftime("%H:%M"))}'),
                 sep='\n',
             ),
             parse_mode=ParseMode.MARKDOWN,
